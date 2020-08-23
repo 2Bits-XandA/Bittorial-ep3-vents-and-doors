@@ -1,0 +1,60 @@
+public Program()
+{
+    Runtime.UpdateFrequency = UpdateFrequency.Update10;
+}
+
+/*
+    Interface My AirVent - IMyAirVent
+
+    Eigenschaften:
+
+    CanPressurize [GET] vom Typ Boolean, True: Raum ist luftdicht, False: raum hat ein Leck.
+    
+    Status [GET] vom Typ VentStatus, Enum mit 
+     -  Depressurized:   Luft-leer
+     -  Depressurizing:  Luft wird abgesaugt
+     -  Pressurized:       Luft vorhanden
+     -  Pressurizing:       Luft wird zugeführt
+
+    Depressurize [GET, SET]: Soll die Luft abgesaugt werden, True / False
+
+
+    Methoden:
+
+    GetOxygenLevel() vom Typ Float, 
+    0 = Keine Luft,    
+    1 = Luft vorhanden
+    Auch hier 0.5 = 50%.
+
+
+
+*/
+
+
+public void Main(string argument, UpdateType updateSource)
+{
+    IMyAirVent vent = GridTerminalSystem.GetBlockWithName("Vent") as  IMyAirVent;
+
+    if ( vent.CanPressurize ) {
+        Echo("Raum ist luftdicht.");        
+    } else {
+        Echo("Raum ist nicht luftdicht");
+        vent.Depressurize = false; // Sonst wird der Vent den Sauerstoff-Tank zu 100% füllen... ;-)
+    }
+
+    if (vent.Depressurize) {
+        Echo("Vent saugt Luft ab.");
+    } else {
+        Echo("Vent wird Luft zuführen, wenn Luftdicht.");
+    }
+
+    float p = vent.GetOxygenLevel() * 100;
+    Echo("Luft-Level: " + p + "%");
+
+    if (vent.Status == VentStatus.Depressurized) {
+        Echo("Raum ist Luftleer");
+    } else {
+        Echo("Status ist: " + vent.Status);
+    }
+
+}

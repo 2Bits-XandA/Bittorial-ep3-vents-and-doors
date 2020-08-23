@@ -1,0 +1,46 @@
+public Program()
+{
+   Runtime.UpdateFrequency = UpdateFrequency.Update10;
+}
+
+/*
+    Interface My Door - IMyDoor:
+
+    IMyDoor.Status [GET] vom Typ  "DoorStatus" (Aufzählung, Enum)
+    - Open: Tür geöffnet
+    - Closed: Tür geschlossen
+    - Opening: Tür öffnet sich
+    - Closing: Tür schließt sich
+
+    IMyDoor.OpenRatio [GET] vom Typ "Float" - Fließkommazahl zwichen
+    0 = Tür zu und
+     1 = Tür offen. 
+    Also z.B. 0.5 = Tür halb geöffnet.
+
+
+    Methoden: 
+    IMyDoor.OpenDoor();
+    IMyDoor.CloseDoor();
+    IMyDoor.ToggleDoor();
+
+
+*/
+
+public void Main(string argument, UpdateType updateSource)
+{
+    IMyDoor door = GridTerminalSystem.GetBlockWithName("Door") as  IMyDoor;
+
+    if (door.Status == DoorStatus.Open) {
+        Echo("Tür ist offen.");
+        door.CloseDoor();
+    } else if (door.Status == DoorStatus.Closing) {
+        float p = door.OpenRatio * 100;
+        Echo("Schließe, Stand " + p + "%");
+    } else if (door.Status == DoorStatus.Closed) {
+        Echo("Tür ist zu.");
+        door.OpenDoor();
+    } else if (door.Status == DoorStatus.Opening) { // jap, ich weiß - else hätte genügt aber es geht ja um DoorStatus... ;-) 
+        float p = door.OpenRatio * 100;
+        Echo("Öffne, Stand " + p + "%");
+    }        
+}

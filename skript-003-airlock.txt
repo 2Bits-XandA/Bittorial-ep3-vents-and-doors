@@ -1,0 +1,163 @@
+String _doorGroupName = "Airlock Doors";
+String _lightGroupName = "Airlock Lights";
+String _soundGroupName = "Airlock Sounds";
+float lowOxyLevel = 0.15f;
+
+IMyAirVent airlockVent = null;
+IMyAirVent innerVent = null;
+
+public Program()
+{
+   Runtime.UpdateFrequency = UpdateFrequency.Update10;
+}
+
+public void Main(string argument, UpdateType updateSource)
+{
+   this.airlockVent = GridTerminalSystem.GetBlockWithName("Airlock Vent") as  IMyAirVent;
+   this.innerVent = GridTerminalSystem.GetBlockWithName("Inner Vent") as  IMyAirVent;
+
+   if  (this.innerVent.Depressurize &&  this.innerVent.GetOxygenLevel() < this.lowOxyLevel) {
+        this.modeEmergencyExit();
+   } else  if (this.airlockVent.Depressurize) {
+        // true =  luft wird entfernt
+        this.modeDepressurize();
+   } else {
+        // false =wird mit Luft gefüllt
+        this.modePressurize();        
+   }
+}
+
+
+private List<IMyDoor> getDoors() 
+{
+    List<IMyDoor> doors = new List<IMyDoor>();
+    IMyBlockGroup group = GridTerminalSystem.GetBlockGroupWithName(this._doorGroupName);
+    if (group != null) {
+        group.GetBlocksOfType(doors);
+    }
+    return doors;
+}
+
+private void modeEmergencyExit()
+{
+    Echo("Mode EMERGENCY");
+    
+    bool isDepressurized = this.airlockVent.GetOxygenLevel() < this.lowOxyLevel;
+    if (isDepressurized) { 
+        this.airlockVent.Enabled = false;
+        this.innerVent.Enabled = false;
+        Echo("Empty, open doors");
+        List<IMyDoor> doors = getDoors();
+         for(int i=0;i < doors.Count; i++) {
+            var door = doors[i];
+            if (door.CustomName.Contains("[Out]") || door.CustomName.Contains("[In]")) {
+                if (door.Status == DoorStatus.Open) {
+                    door.Enabled = false;
+                } else {
+                    door.Enabled = true;
+                    door.OpenDoor();
+                }
+            }
+        }
+    } else {
+        this.airlockVent.Enabled = true;        
+        this.airlockVent.Depressurize = true;
+    }
+    
+}
+
+private void modePressurize()
+{
+    Echo("Mode Pressurize");
+    List<IMyDoor> doors = getDoors();
+    this.airlockVent.Enabled = true;
+    this.innerVent.Enabled = true;
+
+    int outDoors = 0;
+    bool isPressurized = this.airlockVent.Status == VentStatus.Pressurized;
+    for(int i=0;i < doors.Count; i++) {
+        var door = doors[i];
+        if (door.CustomName.Contains("[Out]")) {
+            outDoors++;
+            if (door.Status == DoorStatus.Closed) {               
+                door.Enabled = false;
+            } else if (door.Status != DoorStatus.Closing) {
+                door.Enabled = true;
+                door.CloseDoor();
+            }
+        } else if (isPressurized && door.CustomName.Contains("[In]")) {
+            door.Enabled = true;
+        }   
+    }
+
+    sound(!isPressurized);
+    lights(!isPressurized);
+
+    if (outDoors == 0) {
+        throw new Exception("There are no [Out] Doors defined in Group " + this._doorGroupName);
+    }
+}
+
+
+private void modeDepressurize()
+{    
+    Echo("Mode DE-Pressurize");
+    List<IMyDoor> doors = getDoors();
+    this.innerVent.Enabled = true;
+
+    int inDoors = 0;
+    bool isDepressurized = this.airlockVent.GetOxygenLevel() < this.lowOxyLevel;       
+    this.airlockVent.Enabled =!isDepressurized;
+    for(int i=0;i < doors.Count; i++) {
+        var door = doors[i];
+        if (door.CustomName.Contains("[In]")) {
+            inDoors++;
+            if (door.Status == DoorStatus.Closed) {               
+                door.Enabled = false;
+            } else if (door.Status != DoorStatus.Closing) {
+                door.Enabled = true;
+                door.CloseDoor();
+            }
+        } else if (isDepressurized && door.CustomName.Contains("[Out]")) {
+            door.Enabled = true;
+        } 
+    }
+
+    if (inDoors == 0) {
+        throw new Exception("There are no [In] Doors defined in Group " + this._doorGroupName);
+    }
+
+    sound(!isDepressurized );
+    lights(!isDepressurized );
+    
+}
+
+
+
+// Sound and Light Helper:
+
+private void sound(bool turnOn) {
+    List<IMySoundBlock> sounds = new List<IMySoundBlock>();
+    IMyBlockGroup group = GridTerminalSystem.GetBlockGroupWithName(this._soundGroupName);
+    if (group != null) {
+        group.GetBlocksOfType(sounds);
+    }
+    for(int i=0;i < sounds.Count; i++) {
+        if (turnOn) {
+            sounds[i].Play();
+        } else {
+            sounds[i].Stop();
+        }
+    }
+}
+
+private void lights(bool turnOn) {
+    List<IMyFunctionalBlock> lights = new List<IMyFunctionalBlock>();
+    IMyBlockGroup group = GridTerminalSystem.GetBlockGroupWithName(this._lightGroupName);
+    if (group != null) {
+        group.GetBlocksOfType(lights);
+    }
+    for(int i=0;i < lights.Count; i++) {
+       lights[i].Enabled = turnOn;
+    }
+}
